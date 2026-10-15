@@ -70,7 +70,7 @@ A plugin that breaks any of these is rejected. The harness in `test/harness/` ch
     `constant` (or immutable) address set at deployment, at most **20 %** (`2_000` bps) of each spend, computed
     with `FullMath.mulDiv` and rounding down. It comes out of the plugin's allotment (never a surcharge on top), is
     paid as ERC-6909 quote claims on the PoolManager, and needs `CAP_PAY`, the F3 group bit and one more
-    `maxIntents` at point 8. The Workshop studio generates exactly this pattern when a payout wallet is set.
+    `maxIntents` at point 8.
 
 ## 3. Workflow
 
