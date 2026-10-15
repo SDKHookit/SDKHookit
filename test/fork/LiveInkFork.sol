@@ -13,6 +13,7 @@ import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {HookitInk} from "../../src/hookit/HookitInk.sol";
 import {IHookitModuleRegistry, ModuleEntry} from "../../src/hookit/ModuleRegistryTypes.sol";
 import {PluginManifest} from "../../src/hookit/PluginManifest.sol";
+import {PluginPortConstants as PPC} from "../../src/hookit/PluginPortConstants.sol";
 import {RegistryRules} from "../../src/hookit/RegistryRules.sol";
 
 // Minimal ABI copies of the live Hookit v2 contracts (monorepo: src/c/HookCTypes.sol, src/c/interfaces/
@@ -84,6 +85,11 @@ abstract contract LiveInkForkHarness is Test {
     uint256 internal constant HOOK_TAX_SHIFT = 7;
     uint256 internal constant HOOK_TO_CREATOR_ENABLED = 1 << 4;
     uint256 internal constant HOOK_TO_CREATOR_BPS_SHIFT = 55;
+    uint256 internal constant BACKED_FLOOR_ENABLED = 1 << 1;
+    uint256 internal constant FLOOR_ALLOC_SHIFT = 71;
+    uint256 internal constant HOLDER_AIRDROP_ENABLED = 1 << 145;
+    uint256 internal constant HOLDER_AIRDROP_BPS_SHIFT = 146;
+    uint256 internal constant HOLDER_AIRDROP_EPOCH_SHIFT = 228;
     bytes32 internal constant PLUGIN_SKIPPED = keccak256("PluginCallSkipped(bytes32,uint16,uint8,uint8)");
 
     address internal trader = address(0x7EADE5);
@@ -106,6 +112,26 @@ abstract contract LiveInkForkHarness is Test {
     /// @notice Pot share routed to the plugin. Default: half of maxPotBps (0 for a plugin that moves no money).
     function _potBps() internal view virtual returns (uint16) {
         return _manifest(plugin).maxPotBps / 2;
+    }
+
+    /// @notice The test coin's module word: hook tax 5 %, `pot` of the pot to the plugin, the rest to the built-in
+    ///         your caps need (Backed Floor for CAP_FUND_FLOOR, CAP_FLOOR_TOPUP, CAP_FLOOR_ESCROW or REQ_BACKED_FLOOR;
+    ///         Holder Airdrop for CAP_FUND_AIRDROP or REQ_HOLDER_AIRDROP; half each if both), else to the creator.
+    ///         Factory C refuses a launch that lacks a built-in the plugin needs. Override for another module mix.
+    function _modules(uint16 pot) internal view virtual returns (uint256 word) {
+        uint64 caps = _manifest(plugin).caps;
+        bool floor =
+            caps & (PPC.CAP_FUND_FLOOR | PPC.CAP_FLOOR_TOPUP | PPC.CAP_FLOOR_ESCROW | PPC.REQ_BACKED_FLOOR) != 0;
+        bool drop = caps & (PPC.CAP_FUND_AIRDROP | PPC.REQ_HOLDER_AIRDROP) != 0;
+        uint256 rest = 10_000 - pot;
+        if (!floor && !drop) return _word(500, rest);
+        uint256 toFloor = floor ? (drop ? rest / 2 : rest) : 0;
+        word = 500 << HOOK_TAX_SHIFT;
+        if (floor) word |= BACKED_FLOOR_ENABLED | (toFloor << FLOOR_ALLOC_SHIFT);
+        if (drop) {
+            word |= HOLDER_AIRDROP_ENABLED | ((rest - toFloor) << HOLDER_AIRDROP_BPS_SHIFT)
+                | (uint256(300) << HOLDER_AIRDROP_EPOCH_SHIFT);
+        }
     }
 
     // ------------------------------------------------------------------ setup
@@ -145,7 +171,8 @@ abstract contract LiveInkForkHarness is Test {
         return (taxBps << HOOK_TAX_SHIFT) | HOOK_TO_CREATOR_ENABLED | (toCreatorBps << HOOK_TO_CREATOR_BPS_SHIFT);
     }
 
-    /// @notice Launch an ETH coin, hook tax 5 %, pot split creator / plugin (`potBps`); `withPlugin` false = plain.
+    /// @notice Launch an ETH coin with `_modules` (the plugin takes `_potBps`); `withPlugin` false = the same coin
+    ///         without the plugin.
     function _launch(bool withPlugin) internal returns (address token, PoolKey memory key) {
         LaunchParamsC memory lp = _params(_hookConfig(withPlugin));
         uint256 fee = IFactoryC(HookitInk.FACTORY_C).launchFee();
@@ -160,7 +187,7 @@ abstract contract LiveInkForkHarness is Test {
         uint16 pot = withPlugin ? _potBps() : 0;
         PluginChoice[] memory ch = new PluginChoice[](withPlugin ? 1 : 0);
         if (withPlugin) ch[0] = PluginChoice({moduleId: moduleId, potBps: pot, initData: _initData()});
-        return abi.encode(MasterCConfig({version: 1, modules: _word(500, 10_000 - pot), vestPacked: 0, plugins: ch}));
+        return abi.encode(MasterCConfig({version: 1, modules: _modules(pot), vestPacked: 0, plugins: ch}));
     }
 
     function _params(bytes memory hookConfig) internal returns (LaunchParamsC memory lp) {
