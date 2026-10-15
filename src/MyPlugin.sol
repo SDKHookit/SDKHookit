@@ -26,7 +26,8 @@ contract MyPlugin is HookPluginBase {
 
     /// @dev Point 0, once per pool, already authenticated (registered hook, untampered context, one-shot).
     ///      TODO(launch): decode and bound the creator's `initData` here; reverting here fails the LAUNCH (fine),
-    ///      reverting in a swap callback freezes TRADING (never acceptable).
+    ///      reverting in a swap callback freezes TRADING (never acceptable). hookit.fun's launch form sends it
+    ///      empty: default every setting when `initData.length == 0`.
     function _onLaunch(LaunchCtx calldata, bytes calldata) internal override returns (address[] memory custody) {
         return custody; // TODO(custody): list (<= 3) accounts that hold users' launch tokens, if any
     }

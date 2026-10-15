@@ -24,6 +24,10 @@ This folder is self-contained. Read, in order: this file, `src/hookit/IHookPlugi
   to every callback as `ctx.available`. The plugin spends it only by returning **intents** that hook C executes:
   1 PAY(to, amount), 2 BURN, 3 DEEPEN (liquidity), 4 FUND_FLOOR, 5 FUND_AIRDROP, 6 CREDIT_CREATOR — each needs its
   capability bit (kind k = bit k-1). Rebates to the swapper need the delta capabilities (bits 28-31).
+- **Launch settings.** `onLaunch` receives the creator's `initData`. hookit.fun's launch form launches a builder hook
+  with **empty** `initData`, so give every setting a default for `initData.length == 0` (as `BuyBurnPlugin` does)
+  and bound what you decode. An agent launching through hookit-mcp or the agent API can pass up to 1,024 bytes of
+  `initData` for its slot; document the encoding in the description if your plugin reads any.
 - **Identity.** `msg.sender` is hook C. The trader is `ctx.hint` (first 32 bytes of hookData, set by routers) if
   non-zero, else `ctx.origin`. Both are untrusted: never let a **sell** change anyone's state (a seller can name
   anyone in hookData).
@@ -92,8 +96,8 @@ forge build && forge test                    # 2. everything green before you st
    the plugin is registered (admin pranked, fork only) and traded on the real hook C with the exact declared gas.
    Copy `test/fork/ExamplesLiveInk.t.sol`'s `MyPluginLiveInkTest` for the renamed plugin.
 7. **Format.** `forge fmt`.
-8. **Deploy on Ink — the developer does this, with their own wallet.** The agent prepares the command and the human
-   runs it. Keyless rules: never ask for, paste, print, log or store a private key or seed phrase; never put a key on
+8. **Deploy on Ink, with the developer's wallet.** Either the agent prepares the command and the human runs it, or
+   the agent deploys through hookit-mcp (below). Keyless rules: never ask for, paste, print, log or store a private key or seed phrase; never put a key on
    a command line or in a file; never run a broadcasting command yourself unless the human explicitly asks you to
    in this conversation. The wallet is imported once, interactively, by the human:
    ```sh
@@ -109,6 +113,11 @@ forge build && forge test                    # 2. everything green before you st
      --constructor-args $(cast abi-encode "f(address)" 0x91f1622D49a09Ce2904E8f98650393eB3dAA2470) \
      --verifier blockscout --verifier-url https://explorer.inkonchain.com/api/
    ```
+   **Through hookit-mcp** (`npx hookit-mcp`), when the human connected it to you with a wallet of theirs: its key
+   sits in the MCP server's environment (`HOOKIT_PRIVATE_KEY`) and never reaches you. `deploy_hook` with
+   `artifact: "out/MyPlugin.sol/MyPlugin.json"` checks the artifact and prices the deployment (a dry run, the
+   default); call it with `dryRun: false` only once the human said to deploy. It passes the live ModuleRegistry
+   itself and answers with the address and the exact verify and manifest commands (both keyless: run them).
 9. **Manifest.** `forge script script/Manifest.s.sol --sig "run(string,address)" my-plugin <address> --rpc-url
    https://rpc-gel.inkonchain.com` — reads the deployed code, re-runs every registry check, writes
    `manifests/my-plugin.json`. It never broadcasts.
@@ -118,6 +127,13 @@ forge build && forge test                    # 2. everything green before you st
     wallet that deployed it (nothing moves on chain). Keep the test output (`forge test` summary, gas report, fork
     run) in the repo for the reviewer. The owner reviews (§9.3), may ask for changes (a change = a new deployment and
     a new manifest), then registers it. Walkthrough and agent briefs: https://hookit.fun/workshop/build.
+    **Through hookit-mcp:** `submit_hook` with the manifest file, the repo link at the deployed commit, the name,
+    tagline and description (and optional tags) sends the same submission, signed by the MCP's wallet: deploy and
+    submit from the same wallet. Dry run first (the default), show the human the card, then `dryRun: false`.
+11. **Follow the review, then launch.** `hook_status` (hookit-mcp) with the plugin address shows the status, the
+    reviewer's note and what to do next. Once it is live it gives the module id: `list_builder_hooks` lists it and
+    `launch_token` with `builderHooks: [{ "hook": <moduleId>, "pct": <share>, "initData": <settings, optional> }]`
+    launches a coin with it (dry run first; a pot share needs a hook tax to fill the pot).
 
 ## 4. What not to do
 
