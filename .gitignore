@@ -1,0 +1,9 @@
+# dependencies (run ./setup.sh)
+lib/
+# build output
+out/
+cache/
+broadcast/
+# generated manifests (examples/ holds the committed samples)
+manifests/*.json
+.env

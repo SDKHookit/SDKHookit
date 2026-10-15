@@ -1,0 +1,28 @@
+{
+  "schema": "hookit.plugin-manifest/v1",
+  "chainId": 57073,
+  "pluginApi": 3,
+  "plugin": "0x5aadfb43ef8daf45dd80f4676345b7676f1d70e3",
+  "name": "Buy Burn",
+  "description": "On every buy, queues a buy-and-burn of a fixed share of the buy, paid from the plugin pot share.",
+  "caps": "65538",
+  "capsHex": "0x0000000000010002",
+  "capNames": ["CAP_BURN", "CAP_AFTER_SWAP"],
+  "hookApiMask": "2",
+  "limits": {
+    "launchGas": 150000,
+    "gas": [0, 0, 0, 0, 0, 0, 0, 40000, 0, 0],
+    "maxIntents": [0, 0, 1, 0]
+  },
+  "maxPotBps": 10000,
+  "maxSurchargeBps": 0,
+  "compat": {
+    "incompatibleWith": [],
+    "forbiddenBuiltins": 2048,
+    "groups": "6",
+    "exclusiveGroups": "0",
+    "conflictGroups": "0"
+  },
+  "codehash": "0x8930cbf7206c6e29339e5569225bfa80c40f27d6acb2fdecd67a98c12219055f",
+  "repo": "https://github.com/SDKHookit/SDKHookit"
+}
