@@ -115,9 +115,10 @@ forge build && forge test                    # 2. everything green before you st
    ```
    **Through hookit-mcp** (`npx hookit-mcp`), when the human connected it to you with a wallet of theirs: its key
    sits in the MCP server's environment (`HOOKIT_PRIVATE_KEY`) and never reaches you. `deploy_hook` with
-   `artifact: "out/MyPlugin.sol/MyPlugin.json"` checks the artifact and prices the deployment (a dry run, the
-   default); call it with `dryRun: false` only once the human said to deploy. It passes the live ModuleRegistry
-   itself and answers with the address and the exact verify and manifest commands (both keyless: run them).
+   `artifact: "<absolute path of this folder>/out/MyPlugin.sol/MyPlugin.json"` (the server runs in its own folder,
+   so give absolute paths) checks the artifact and prices the deployment (a dry run, the default); call it with
+   `dryRun: false` only once the human said to deploy. It passes the live ModuleRegistry itself and answers with
+   the address and the exact verify and manifest commands (both keyless: run them).
 9. **Manifest.** `forge script script/Manifest.s.sol --sig "run(string,address)" my-plugin <address> --rpc-url
    https://rpc-gel.inkonchain.com` — reads the deployed code, re-runs every registry check, writes
    `manifests/my-plugin.json`. It never broadcasts.
@@ -127,13 +128,16 @@ forge build && forge test                    # 2. everything green before you st
     wallet that deployed it (nothing moves on chain). Keep the test output (`forge test` summary, gas report, fork
     run) in the repo for the reviewer. The owner reviews (§9.3), may ask for changes (a change = a new deployment and
     a new manifest), then registers it. Walkthrough and agent briefs: https://hookit.fun/workshop/build.
-    **Through hookit-mcp:** `submit_hook` with the manifest file, the repo link at the deployed commit, the name,
-    tagline and description (and optional tags) sends the same submission, signed by the MCP's wallet: deploy and
-    submit from the same wallet. Dry run first (the default), show the human the card, then `dryRun: false`.
+    **Through hookit-mcp:** `submit_hook` with the manifest file (absolute path), the repo link at the deployed
+    commit, the name, tagline and description (and optional tags) sends the same submission, signed by the MCP's
+    wallet: deploy and submit from the same wallet. Dry run first (the default), show the human the card, then
+    `dryRun: false`.
 11. **Follow the review, then launch.** `hook_status` (hookit-mcp) with the plugin address shows the status, the
     reviewer's note and what to do next. Once it is live it gives the module id: `list_builder_hooks` lists it and
-    `launch_token` with `builderHooks: [{ "hook": <moduleId>, "pct": <share>, "initData": <settings, optional> }]`
-    launches a coin with it (dry run first; a pot share needs a hook tax to fill the pot).
+    `launch_token` with `hookTaxPct` and `builderHooks: [{ "hook": <moduleId>, "pct": <share>, "initData": <settings,
+    optional> }]` launches a coin with it (dry run first). A pot share needs a hook tax to fill the pot, and the pot's
+    shares total 100 %: leave `pct` out to give the plugin the whole pot, or send the rest to a built-in destination
+    (for example `"modules": { "autoBurn": true }`).
 
 ## 4. What not to do
 
